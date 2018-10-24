@@ -25,6 +25,7 @@ func main() {
     flag.Parse()
     var err error
 
+    /* open input file */
     var inF *os.File
     defer inF.Close()
     if *inputPath != "" {
@@ -36,9 +37,13 @@ func main() {
         inF = os.Stdin
     }
 
+    /* regex for strings that we're pretty sure to be refs */
     accuRe, err := regexp.Compile(`(?m)(((([A-Z]\S+?)((, )|( and )|(, and )))*([A-Z]\S+?)( et al.?)? \(\d{4}\))|(\((e.g. )?((([A-Z]\S+?)((, )|( and )|(, and )))*([A-Z]\S+?)( et al.?)?,? (\d{4}); )*?((([A-Z]\S+?)((, )|( and )|(, and )))*([A-Z]\S+?)(,? et al.?)?,? (\d{4}))\)))`)
+    /* regex matching four digits in a pair of parentheses */
     coarseRe, err := regexp.Compile(`(?m)\([^()]*?(\d{4})[^()]*?\)`)
+    /* regex matching individual items in a set of refs separated by semicolons */
     subitemRe, err := regexp.Compile(`(?m)(([A-Z]\S+?)((, )|( and )|(, and )))*([A-Z]\S+?)(,? et al.?)?,? (\d{4})`)
+    /* regex matching name, year, and semicolon */
     nameRe, err := regexp.Compile(`(?m)[A-Z]\p{L}+`)
     yearRe, err := regexp.Compile(`(?m)\d{4}`)
     semicolonRe, err := regexp.Compile(`(?m)\;`)
@@ -55,6 +60,7 @@ func main() {
     idxConfidentMatches := 0
     numConfidentMatches := len(confidentMatches)
 
+    /* diff the results of coarse matching and fine matching, and report possible refs */
     for _, match := range coarseMatches {
         if (idxConfidentMatches >= numConfidentMatches) || (match[1] != confidentMatches[idxConfidentMatches][1]) {
             log.Println("Possible reference:", string(text[match[0]:match[1]]))
@@ -66,6 +72,7 @@ func main() {
     var references []Reference
 
     for _, match := range confidentMatches {
+        /* decompose multiple refs separated by semicolons */
         switch semicolonRe.Match(text[match[0]:match[1]]) {
         case false:
             names := nameRe.FindAllString(string(text[match[0]:match[1]]), -1)
@@ -82,6 +89,7 @@ func main() {
         }
     }
 
+    /* open output file */
     var outF *os.File
     defer outF.Close()
     if *outputPath != "" {
@@ -93,6 +101,7 @@ func main() {
         outF = os.Stdout
     }
 
+    /* process each reference */
     for _, ref := range references {
         outF.WriteString(strconv.Itoa(ref.Year))
         for _, name := range ref.Authors {
