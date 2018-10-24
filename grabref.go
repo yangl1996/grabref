@@ -5,7 +5,7 @@ import (
     "os"
     "log"
     "io/ioutil"
-//    "strings"
+    "strings"
     "strconv"
 //    "fmt"
     "regexp"
@@ -20,6 +20,8 @@ type Reference struct {
 func main() {
     inputPath := flag.String("input", "", "path to the text file, use stdin if left empty")
     outputPath := flag.String("output", "", "path to the output file, stdout if left empty")
+    verbose := flag.Bool("verbose", false, "verbose output")
+    strictSearch := flag.Bool("strict", false, "strict Google Scholar search")
     flag.Parse()
     var err error
 
@@ -92,11 +94,38 @@ func main() {
     }
 
     for _, ref := range references {
-        outF.Write([]byte(strconv.Itoa(ref.Year)))
+        outF.WriteString(strconv.Itoa(ref.Year))
         for _, name := range ref.Authors {
-            outF.Write([]byte(" "))
-            outF.Write([]byte(name))
+            outF.WriteString(" ")
+            outF.WriteString(name)
         }
-        outF.Write([]byte("\n"))
+        if *verbose {
+            outF.WriteString(", Context: ")
+            outF.WriteString(ref.Text)
+        }
+        outF.WriteString("\n")
+        log.Println(scholarQuery(&ref, *strictSearch))
     }
 }
+
+func scholarQuery(ref *Reference, strict bool) string {
+    nameList := strings.Join(ref.Authors, "+")
+    year := strconv.Itoa(ref.Year)
+    var query string
+    if strict {
+        query = strings.Join([]string{"https://scholar.google.com/scholar?as_q=&as_epq=&as_oq=&as_eq=&as_occt=any&as_sauthors=",
+                                      nameList,
+                                      "&as_publication=&as_ylo=",
+                                      year,
+                                      "&as_yhi=",
+                                      year,
+                                      "&hl=en&as_sdt=0%2C22"}, "")
+    } else {
+        query = strings.Join([]string{"https://scholar.google.com/scholar?hl=en&q=",
+                                       year,
+                                       "+",
+                                       nameList}, "")
+    }
+    return query
+}
+
