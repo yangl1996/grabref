@@ -22,6 +22,7 @@ func main() {
 	inputPath := flag.String("input", "", "path to the text file, use stdin if left empty")
 	outputPath := flag.String("output", "", "path to the output file, stdout if left empty")
 	sorted := flag.Bool("sorted", false, "sort authors lexicographically")
+	dedup := flag.Bool("dedup", false, "deduplicate references, implies sorted")
 	//verbose := flag.Bool("verbose", false, "verbose output")
 	//strictSearch := flag.Bool("strict", false, "strict Google Scholar search")
 	flag.Parse()
@@ -91,6 +92,7 @@ func main() {
 		}
 	}
 
+	/* sort references lexicographically */
 	compareRefs := func(i, j int) bool {
 		authLen1 := len(references[i].Authors)
 		authLen2 := len(references[j].Authors)
@@ -116,9 +118,38 @@ func main() {
 		}
 	}
 
-	/* sort references lexicographically */
-	if *sorted {
+	if *sorted || *dedup {
 		sort.SliceStable(references, compareRefs)
+	}
+
+	identicalRefs := func(i, j int) bool {
+		if references[i].Year != references[j].Year {
+			return false
+		}
+		if len(references[i].Authors) != len(references[j].Authors) {
+			return false
+		}
+		refLen := len(references[i].Authors)
+		for a := 0; a < refLen; a++ {
+			if strings.Compare(references[i].Authors[a], references[j].Authors[a]) != 0 {
+				return false
+			}
+		}
+		return true
+	}
+
+	if *dedup {
+		j := 0
+		refLen := len(references)
+		for i := 1; i < refLen; i++ {
+			if identicalRefs(i, j) {
+				fmt.Printf("[%v][%v]\n", references[i], references[j])
+				continue
+			}
+			j++
+			references[i], references[j] = references[j], references[i]
+		}
+		references = references[:j+1]
 	}
 
 	/* open output file */
